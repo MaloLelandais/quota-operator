@@ -1,5 +1,7 @@
 # quota-operator
 
+[![E2E Tests](https://github.com/MaloLelandais/quota-operator/actions/workflows/test-e2e.yml/badge.svg)](https://github.com/MaloLelandais/quota-operator/actions/workflows/test-e2e.yml)
+
 A Kubernetes operator that automatically manages `ResourceQuota` objects on namespaces based on annotations.
 
 ## How it works
