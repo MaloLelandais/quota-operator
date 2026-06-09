@@ -1,0 +1,19 @@
+apiVersion: quota.malolelandais.dev/v1alpha1
+kind: NamespaceQuotaPolicy
+metadata:
+  name: default-policy
+spec:
+  tierAnnotation: "quota-operator/tier"
+  tiers:
+    small:
+      cpu: "1"
+      memory: "2Gi"
+      maxPods: 10
+    medium:
+      cpu: "4"
+      memory: "8Gi"
+      maxPods: 30
+    large:
+      cpu: "8"
+      memory: "16Gi"
+      maxPods: 100

@@ -1,0 +1,10 @@
+{{- if .Values.policy.enabled }}
+apiVersion: quota.malolelandais.dev/v1alpha1
+kind: NamespaceQuotaPolicy
+metadata:
+  name: default-policy
+spec:
+  tierAnnotation: {{ .Values.policy.tierAnnotation }}
+  tiers:
+    {{- toYaml .Values.policy.tiers | nindent 4 }}
+{{- end }}

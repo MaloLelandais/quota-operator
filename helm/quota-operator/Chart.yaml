@@ -1,0 +1,14 @@
+apiVersion: v2
+name: quota-operator
+description: A Kubernetes operator that automatically manages ResourceQuotas on namespaces based on annotations
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - operator
+  - resourcequota
+  - platform-engineering
+maintainers:
+  - name: Malo Lelandais
+    email: malo.lelandais@gmail.com

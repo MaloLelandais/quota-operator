@@ -1,0 +1,36 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/malolelandais/quota-operator
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+# Configuration de la NamespaceQuotaPolicy par défaut
+policy:
+  enabled: true
+  tierAnnotation: "quota-operator/tier"
+  tiers:
+    small:
+      cpu: "1"
+      memory: "2Gi"
+      maxPods: 10
+    medium:
+      cpu: "4"
+      memory: "8Gi"
+      maxPods: 30
+    large:
+      cpu: "8"
+      memory: "16Gi"
+      maxPods: 100
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+serviceAccount:
+  create: true
+  name: "quota-operator"
