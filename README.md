@@ -89,7 +89,32 @@ kubectl get resourcequota -n test-small
 └─────────────────────────────────────────────┘
 ```
 
+## Observability
 
+The operator exposes Prometheus metrics on `:8080/metrics` and includes a Grafana dashboard.
+
+### Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `quota_operator_managed_namespaces` | Gauge | Number of namespaces currently managed by a policy |
+| `quota_operator_reconciliations_total` | Counter | Total reconciliations, labeled by `policy` and `status` (`success`\|`error`) |
+| `quota_operator_reconciliation_duration_seconds` | Histogram | Reconciliation duration in seconds |
+
+### Setup (kube-prometheus-stack)
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install monitoring prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace \
+  --set grafana.adminPassword=admin \
+  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+kubectl apply -f config/prometheus/monitor.yaml
+```
+
+### Dashboard
+
+![quota-operator Grafana dashboard](docs/dashboard.png)
 
 ## Built with
 

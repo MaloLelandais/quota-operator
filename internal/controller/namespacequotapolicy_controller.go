@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -14,10 +15,51 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"time"
 
 	quotav1alpha1 "github.com/malolelandais/quota-operator/api/v1alpha1"
 )
+
+var (
+	// Nombre total de reconciliations
+	reconciliationsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "quota_operator_reconciliations_total",
+			Help: "Total number of reconciliations per policy",
+		},
+		[]string{"policy", "status"}, // labels: policy=default-policy, status=success|error
+	)
+
+	// Nombre de namespaces actuellement gérés
+	managedNamespacesGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "quota_operator_managed_namespaces",
+			Help: "Number of namespaces currently managed by a policy",
+		},
+		[]string{"policy"},
+	)
+
+	// Durée des reconciliations
+	reconciliationDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "quota_operator_reconciliation_duration_seconds",
+			Help:    "Duration of reconciliation in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"policy"},
+	)
+)
+
+func init() {
+	// Enregistre les métriques auprès du registry controller-runtime
+	metrics.Registry.MustRegister(
+		reconciliationsTotal,
+		managedNamespacesGauge,
+		reconciliationDuration,
+	)
+}
 
 type NamespaceQuotaPolicyReconciler struct {
 	client.Client
@@ -31,21 +73,24 @@ type NamespaceQuotaPolicyReconciler struct {
 
 func (r *NamespaceQuotaPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	start := time.Now() // ← démarre le timer
+
 	logger.Info("Reconciling NamespaceQuotaPolicy", "name", req.Name)
 
 	// 1. Récupère la NamespaceQuotaPolicy
 	policy := &quotav1alpha1.NamespaceQuotaPolicy{}
 	if err := r.Get(ctx, req.NamespacedName, policy); err != nil {
 		if errors.IsNotFound(err) {
-			// La policy a été supprimée, rien à faire
 			return ctrl.Result{}, nil
 		}
+		reconciliationsTotal.WithLabelValues(req.Name, "error").Inc()
 		return ctrl.Result{}, fmt.Errorf("failed to get NamespaceQuotaPolicy: %w", err)
 	}
 
 	// 2. Liste tous les namespaces du cluster
 	namespaceList := &corev1.NamespaceList{}
 	if err := r.List(ctx, namespaceList); err != nil {
+		reconciliationsTotal.WithLabelValues(req.Name, "error").Inc()
 		return ctrl.Result{}, fmt.Errorf("failed to list namespaces: %w", err)
 	}
 
@@ -59,7 +104,6 @@ func (r *NamespaceQuotaPolicyReconciler) Reconcile(ctx context.Context, req ctrl
 	for _, ns := range namespaceList.Items {
 		tierValue, ok := ns.Annotations[annotation]
 		if !ok {
-			// Ce namespace n'a pas l'annotation, on skip
 			continue
 		}
 
@@ -70,7 +114,6 @@ func (r *NamespaceQuotaPolicyReconciler) Reconcile(ctx context.Context, req ctrl
 			continue
 		}
 
-		// 4. Applique le ResourceQuota sur ce namespace
 		if err := r.applyResourceQuota(ctx, ns.Name, tier, tierConfig); err != nil {
 			logger.Error(err, "Failed to apply ResourceQuota", "namespace", ns.Name)
 			continue
@@ -80,13 +123,19 @@ func (r *NamespaceQuotaPolicyReconciler) Reconcile(ctx context.Context, req ctrl
 		managedCount++
 	}
 
-	// 5. Met à jour le status de la policy
+	// 4. Met à jour le status
 	policy.Status.ManagedNamespaces = managedCount
 	now := metav1.Now()
 	policy.Status.LastApplied = &now
 	if err := r.Status().Update(ctx, policy); err != nil {
+		reconciliationsTotal.WithLabelValues(req.Name, "error").Inc()
 		return ctrl.Result{}, fmt.Errorf("failed to update status: %w", err)
 	}
+
+	// 5. Enregistre les métriques
+	reconciliationsTotal.WithLabelValues(req.Name, "success").Inc()
+	managedNamespacesGauge.WithLabelValues(req.Name).Set(float64(managedCount))
+	reconciliationDuration.WithLabelValues(req.Name).Observe(time.Since(start).Seconds())
 
 	return ctrl.Result{}, nil
 }
