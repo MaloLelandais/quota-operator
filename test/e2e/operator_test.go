@@ -103,10 +103,13 @@ func TestOperatorE2E(t *testing.T) {
 		if err != nil {
 			return false, nil
 		}
+		cpu := quota.Spec.Hard[corev1.ResourceCPU]
+		memory := quota.Spec.Hard[corev1.ResourceMemory]
+		pods := quota.Spec.Hard[corev1.ResourcePods]
 		t.Logf("ResourceQuota found: CPU=%s Memory=%s Pods=%s",
-			quota.Spec.Hard[corev1.ResourceCPU].String(),
-			quota.Spec.Hard[corev1.ResourceMemory].String(),
-			quota.Spec.Hard[corev1.ResourcePods].String(),
+    		cpu.String(),
+    		memory.String(),
+    		pods.String(),
 		)
 		return true, nil
 	})
