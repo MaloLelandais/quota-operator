@@ -43,19 +43,19 @@ func setupClient(t *testing.T) (client.Client, *kubernetes.Clientset) {
 	err = wait.PollUntilContextTimeout(
 		context.Background(), 2*time.Second, 30*time.Second, true,
 		func(ctx context.Context) (bool, error) {
-		var err error
-		c, err = client.New(config, client.Options{Scheme: scheme})
-		if err != nil {
-			return false, nil
-		}
-		// Vérifie que la CRD est accessible
-		list := &quotav1alpha1.NamespaceQuotaPolicyList{}
-		if err := c.List(ctx, list); err != nil {
-			t.Logf("CRD not ready yet: %v", err)
-			return false, nil
-		}
-		return true, nil
-	})
+			var err error
+			c, err = client.New(config, client.Options{Scheme: scheme})
+			if err != nil {
+				return false, nil
+			}
+			// Vérifie que la CRD est accessible
+			list := &quotav1alpha1.NamespaceQuotaPolicyList{}
+			if err := c.List(ctx, list); err != nil {
+				t.Logf("CRD not ready yet: %v", err)
+				return false, nil
+			}
+			return true, nil
+		})
 	if err != nil {
 		t.Fatalf("CRD never became available: %v", err)
 	}
