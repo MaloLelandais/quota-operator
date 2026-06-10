@@ -75,7 +75,7 @@ func TestOperatorE2E(t *testing.T) {
 	if err := c.Create(ctx, policy); err != nil {
 		t.Fatalf("Failed to create policy: %v", err)
 	}
-	defer c.Delete(ctx, policy)
+	defer func() { _ = c.Delete(ctx, policy) }()
 
 	// 2. Crée un namespace annoté
 	t.Log("Creating annotated namespace...")
@@ -90,7 +90,7 @@ func TestOperatorE2E(t *testing.T) {
 	if _, err := cs.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
-	defer cs.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{})
+	defer func() { _ = cs.CoreV1().Namespaces().Delete(ctx, ns.Name, metav1.DeleteOptions{}) }()
 
 	// 3. Attend que le ResourceQuota soit créé (max 60s)
 	t.Log("Waiting for ResourceQuota to be created...")
@@ -107,9 +107,9 @@ func TestOperatorE2E(t *testing.T) {
 		memory := quota.Spec.Hard[corev1.ResourceMemory]
 		pods := quota.Spec.Hard[corev1.ResourcePods]
 		t.Logf("ResourceQuota found: CPU=%s Memory=%s Pods=%s",
-    		cpu.String(),
-    		memory.String(),
-    		pods.String(),
+			cpu.String(),
+			memory.String(),
+			pods.String(),
 		)
 		return true, nil
 	})
