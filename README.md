@@ -89,7 +89,6 @@ kubectl get resourcequota -n test-small
 └─────────────────────────────────────────────┘
 ```
 
-<img width="1141" height="813" alt="image" src="https://github.com/user-attachments/assets/1ddd7b9a-c0e6-4b10-848e-877b74373c51" />
 
 
 ## Built with
