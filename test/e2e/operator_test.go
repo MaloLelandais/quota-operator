@@ -40,7 +40,9 @@ func setupClient(t *testing.T) (client.Client, *kubernetes.Clientset) {
 
 	// Retry jusqu'à ce que l'API soit disponible
 	var c client.Client
-	err = wait.PollUntilContextTimeout(context.Background(), 2*time.Second, 30*time.Second, true, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(
+		context.Background(), 2*time.Second, 30*time.Second, true,
+		func(ctx context.Context) (bool, error) {
 		var err error
 		c, err = client.New(config, client.Options{Scheme: scheme})
 		if err != nil {
