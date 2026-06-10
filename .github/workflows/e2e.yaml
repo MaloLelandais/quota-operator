@@ -1,0 +1,48 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Create kind cluster
+        run: kind create cluster --name e2e
+
+      - name: Install CRDs
+        run: make install
+
+      - name: Build and load Docker image
+        run: |
+          docker build -t quota-operator:e2e .
+          kind load docker-image quota-operator:e2e --name e2e
+
+      - name: Deploy operator
+        run: |
+          kubectl apply -f config/rbac/
+          sed 's/quota-operator:dev/quota-operator:e2e/g' config/manager/manager-dev.yaml | kubectl apply -f -
+          kubectl rollout status deployment quota-operator-controller-manager --timeout=60s
+
+      - name: Run E2E tests
+        run: go test ./test/e2e/... -v -timeout 120s
+
+      - name: Cleanup
+        if: always()
+        run: kind delete cluster --name e2e
