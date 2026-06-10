@@ -49,15 +49,6 @@ jobs:
             crd/namespacequotapolicies.quota.malolelandais.dev
           sleep 5
 
-      - name: Debug cluster state
-        run: |
-          echo "=== Pods ==="
-          kubectl get pods -A
-          echo "=== CRDs ==="
-          kubectl get crds
-          echo "=== Operator logs ==="
-          kubectl logs -l app=quota-operator --tail=20 || true
-
       - name: Run E2E tests
         run: go test ./test/e2e/... -v -timeout 120s
 
