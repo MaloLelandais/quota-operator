@@ -38,13 +38,16 @@ jobs:
         run: |
           kubectl apply -f config/rbac/leader_election_role.yaml
           kubectl apply -f config/rbac/leader_election_role_binding.yaml
-          kubectl apply -f config/rbac/role.yaml
-          kubectl apply -f config/rbac/role_binding.yaml
           kubectl apply -f config/rbac/metrics_auth_role.yaml
           kubectl apply -f config/rbac/metrics_auth_role_binding.yaml
+          kubectl apply -f config/rbac/role.yaml
+          sed 's/namespace: system/namespace: default/g; s/name: controller-manager/name: quota-operator-sa/g' \
+            config/rbac/role_binding.yaml | kubectl apply -f -
           sed 's/quota-operator:dev/quota-operator:e2e/g' config/manager/manager-dev.yaml | kubectl apply -f -
           kubectl rollout status deployment quota-operator-controller-manager --timeout=60s
-          kubectl wait --for condition=established --timeout=60s crd/namespacequotapolicies.quota.malolelandais.dev
+          kubectl wait --for condition=established --timeout=60s \
+            crd/namespacequotapolicies.quota.malolelandais.dev
+          sleep 5
 
       - name: Run E2E tests
         run: go test ./test/e2e/... -v -timeout 120s
