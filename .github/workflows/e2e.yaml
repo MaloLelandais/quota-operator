@@ -33,7 +33,10 @@ jobs:
         run: |
           docker build -t quota-operator:e2e .
           kind load docker-image quota-operator:e2e --name e2e
-
+      - name: Install cert-manager
+        run: |
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.20.2/cert-manager.yaml
+          kubectl wait deployment.apps/cert-manager-webhook --for condition=Available --namespace cert-manager --timeout=5m
       - name: Deploy operator
         run: |
           kubectl apply -f config/rbac/leader_election_role.yaml
@@ -43,8 +46,30 @@ jobs:
           kubectl apply -f config/rbac/role.yaml
           sed 's/namespace: system/namespace: default/g; s/name: controller-manager/name: quota-operator-sa/g' \
             config/rbac/role_binding.yaml | kubectl apply -f -
+
+          # cert-manager: issuer + certificate
+          sed 's/namespace: system/namespace: default/g' config/certmanager/issuer.yaml | kubectl apply -f -
+          sed 's/namespace: system/namespace: default/g; s/SERVICE_NAME/webhook-service/g; s/SERVICE_NAMESPACE/default/g' \
+            config/certmanager/certificate-webhook.yaml | kubectl apply -f -
+
+          # webhook service (selector adapté à nos labels) + ValidatingWebhookConfiguration
+          sed 's/namespace: system/namespace: default/g; s/control-plane: controller-manager/app: quota-operator/g; /app.kubernetes.io\/name: quota-operator/d' \
+            config/webhook/service.yaml | kubectl apply -f -
+          sed 's/namespace: system/namespace: default/g' config/webhook/manifests.yaml | kubectl apply -f -
+
+          kubectl annotate validatingwebhookconfiguration validating-webhook-configuration \
+            cert-manager.io/inject-ca-from=default/serving-cert --overwrite
+
+          # opérateur
           sed 's/quota-operator:dev/quota-operator:e2e/g' config/manager/manager-dev.yaml | kubectl apply -f -
-          kubectl rollout status deployment quota-operator-controller-manager --timeout=60s
+
+          # monte les certs cert-manager dans le pod
+          kubectl patch deployment quota-operator-controller-manager --type='json' -p='[
+            {"op": "add", "path": "/spec/template/spec/volumes", "value": [{"name": "cert", "secret": {"secretName": "webhook-server-cert"}}]},
+            {"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts", "value": [{"name": "cert", "mountPath": "/tmp/k8s-webhook-server/serving-certs", "readOnly": true}]}
+          ]'
+
+          kubectl rollout status deployment quota-operator-controller-manager --timeout=120s
           kubectl wait --for condition=established --timeout=60s \
             crd/namespacequotapolicies.quota.malolelandais.dev
           sleep 5
