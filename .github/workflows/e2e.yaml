@@ -49,7 +49,7 @@ jobs:
 
           # cert-manager: issuer + certificate
           sed 's/namespace: system/namespace: default/g' config/certmanager/issuer.yaml | kubectl apply -f -
-          sed 's/namespace: system/namespace: default/g; s/SERVICE_NAME/webhook-service/g; s/SERVICE_NAMESPACE/default/g' \
+          sed 's/namespace: system/namespace: default/g; s/SERVICE_NAMESPACE/default/g; s/SERVICE_NAME/webhook-service/g' \
             config/certmanager/certificate-webhook.yaml | kubectl apply -f -
 
           # webhook service (selector adapté à nos labels) + ValidatingWebhookConfiguration
