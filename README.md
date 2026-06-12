@@ -93,6 +93,17 @@ kubectl get resourcequota -n test-small
 
 The operator exposes Prometheus metrics on `:8080/metrics` and includes a Grafana dashboard.
 
+## Admission Webhook
+
+A validating admission webhook checks every `NamespaceQuotaPolicy` before it's persisted:
+
+- `spec.tiers` must contain at least one tier
+- Each tier's `cpu`, `memory` must be greater than zero, and `maxPods` must be positive
+
+Invalid policies are rejected immediately by the API server, with a clear error message — instead of failing silently in the controller.
+
+The webhook uses [cert-manager](https://cert-manager.io) for automatic TLS certificate provisioning and CA injection (`cert-manager.io/inject-ca-from`).
+
 ### Metrics
 
 | Metric | Type | Description |
